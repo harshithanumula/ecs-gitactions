@@ -1,35 +1,70 @@
-name: Deploy to ECS
-
+name: Deploy to Amazon ECS
+ 
 on:
   push:
     branches:
       - main
-
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: ecr-project    
+ 
 jobs:
   deploy:
+    name: Deploy
     runs-on: ubuntu-latest
-
+    environment: development
+ 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v2
-
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-
-    - name: Build and Push Docker Image
-      run: |
-        docker build -t ${{ secrets.AWS_ACCOUNT_URL }}/ecr-project:latest .
-        docker push ${{ secrets.AWS_ACCOUNT_URL }}/ecr-project:latest
-
-
-    - name: Update ECS Service
-      run: |
-        aws ecs update-service --cluster project --force-new-deployment
+      - name: Checkout
+        uses: actions/checkout@v3
+ 
+      - name: Configure AWS credentials
+        uses:  aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+ 
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+ 
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/ecr-project:github.sha -f Dockerfile.yml .
+          docker push $ECR_REGISTRY/ecr-project:github.sha
+          echo "image=$ECR_REGISTRY/ecr-project:github.sha" >> $GITHUB_OUTPUT
+         # Step to create ECS cluster
+      - name: Create ECS Cluster
+        run: |
+          aws ecs create-cluster --cluster-name my-ecs-cluster
+     # Step to register task definition
+      - name: Register Task Definition
+        run: |
+          aws ecs register-task-definition \
+            --family nginx-task \
+            --container-definitions '[{"name":"my-container","image":"881738188630.dkr.ecr.ap-south-1.amazonaws.com/ecr-project9047","portMappings":[{"containerPort":80}],"memoryReservation":128}]'
+     # Step to create ECS service
+      - name: Create ECS Service
+        run: |
+          aws ecs create-service \
+            --cluster my-ecs-cluster \
+            --service-name nginx-service \
+            --task-definition nginx-task \
+            --desired-count 1 \
+            --launch-type EC2 \
+            --region ${{ secrets.AWS_REGION }}
+     # Step to wait for service to stabilize
+      - name: Wait for Service Stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster my-ecs-cluster \
+            --services nginx-service \
+            --region ${{ secrets.AWS_REGION }}
