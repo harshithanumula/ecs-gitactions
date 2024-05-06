@@ -26,7 +26,7 @@ jobs:
 
     - name: Build and Push Docker Image
       run: |
-        docker build -t ${{ secrets.AWS_ACCOUNT_URL }}/project-ecr:latest .
+        docker build -t ${{ secrets.AWS_ACCOUNT_URL }}/project-ecr:latest -f Dockerfile.yml .
         docker push ${{ secrets.AWS_ACCOUNT_URL }}/project-ecr:latest
 
 
