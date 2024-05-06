@@ -27,7 +27,7 @@ jobs:
     - name: Build and Push Docker Image
       run: |
         docker build -t project-ecr:latest -f Dockerfile.yml .
-        docker tag project-ecr:latest ${{ steps.login-ecr.outputs.registry }}/project-ecr:latest
+        docker tag project-ecr:latest ${{ secrets.AWS_ACCOUNT_URL }}/project-ecr:latest
         docker push ${{ steps.login-ecr.outputs.registry }}/project-ecr:latest
 
     - name: Update ECS Service
