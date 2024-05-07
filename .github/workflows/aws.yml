@@ -6,7 +6,7 @@ on:
       - main
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: ecr-project    
+  ECR_REPOSITORY: project-ecr    
  
 jobs:
   deploy:
@@ -38,9 +38,9 @@ jobs:
           # Build a docker container and
           # push it to ECR so that it can
           # be deployed to ECS.
-          docker build -t $ECR_REGISTRY/ecr-project:github.sha -f Dockerfile.yml .
-          docker push $ECR_REGISTRY/ecr-project:github.sha
-          echo "image=$ECR_REGISTRY/ecr-project:github.sha" >> $GITHUB_OUTPUT
+          docker build -t $ECR_REGISTRY/project-ecr:github.sha -f Dockerfile.yml .
+          docker push $ECR_REGISTRY/project-ecr:github.sha
+          echo "image=$ECR_REGISTRY/project-ecr:github.sha" >> $GITHUB_OUTPUT
          # Step to create ECS cluster
       - name: Create ECS Cluster
         run: |
@@ -50,7 +50,7 @@ jobs:
         run: |
           aws ecs register-task-definition \
             --family nginx-task \
-            --container-definitions '[{"name":"my-container","image":"public.ecr.aws/h1n3r6c8/ecr-project","portMappings":[{"containerPort":80}],"memoryReservation":128}]'
+            --container-definitions '[{"name":"my-container","image":"975049942990.dkr.ecr.us-east-1.amazonaws.com/project-ecr","portMappings":[{"containerPort":80}],"memoryReservation":128}]'
      # Step to create ECS service
       - name: Create or Update ECS Service with Retry
         run: |
